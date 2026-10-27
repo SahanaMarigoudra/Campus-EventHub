@@ -1,0 +1,38 @@
+services:
+  # ── Backend API (Flask + Gunicorn) ──────────────────────────────────────────
+  - type: web
+    name: campus-eventhub-api
+    runtime: python
+    rootDir: backend
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  # ── Frontend (React + Vite Static Site) ────────────────────────────────────
+  - type: web
+    name: campus-eventhub
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: campus-eventhub-api
+          property: host
+          envVarKey: VITE_API_URL
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

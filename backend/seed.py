@@ -14,8 +14,12 @@ import sys
 import argparse
 from datetime import datetime, timedelta, timezone
 
-# Force UTF-8 stdout
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+# Force UTF-8 stdout (only in interactive terminals, not CI/Render pipes)
+if hasattr(sys.stdout, 'buffer'):
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 sys.path.insert(0, os.path.dirname(__file__))
 
 from dotenv import load_dotenv
