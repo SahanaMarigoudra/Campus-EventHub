@@ -1,0 +1,16 @@
+# Backend gitignore
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.sqbpro
+instance/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+*_out.txt
+*.log

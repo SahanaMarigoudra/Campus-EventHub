@@ -1,0 +1,92 @@
+# ==============================================================================
+# Git Ignore - College Event Management Platform
+# Protects sensitive secrets, database files, dependencies, and environment keys
+# ==============================================================================
+
+# --- Secrets & Environment Configurations ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+!.env.example
+*.local
+
+# --- Database & SQLite Storage (DO NOT COMMIT SENSITIVE DATA) ---
+*.db
+*.sqlite
+*.sqlite3
+*.sqbpro
+instance/
+backend/instance/
+**/instance/
+*.db-journal
+*.db-wal
+*.db-shm
+
+# --- Python Artifacts & Caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Node / Frontend Artifacts ---
+node_modules/
+frontend/node_modules/
+**/node_modules/
+frontend/dist/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.npm
+.eslintcache
+
+# --- Logs & Temporary Outputs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*_out.txt
+test_out.txt
+check_db_out.txt
+verify_out.txt
+
+# --- Operating System & IDE Files ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
