@@ -34,8 +34,8 @@ def create_app(config_object=None):
 
     CORS(
         app,
-        resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", ["*"])}},
-        supports_credentials=True,
+        resources={r"/api/*": {"origins": "*"}},
+        supports_credentials=False,
     )
 
     # Register blueprints
