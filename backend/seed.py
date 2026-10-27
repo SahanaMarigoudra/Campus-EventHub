@@ -1053,29 +1053,32 @@ def seed(reset=False):
         # HackMCA Team Registration
         if mca_hack and user_map.get("alex.mca@college.edu"):
             alex = user_map["alex.mca@college.edu"]
-            team = Team(
-                event_id=mca_hack.id,
-                team_name="ByteCommanders",
-                team_leader_id=alex.id,
-            )
-            db.session.add(team)
-            db.session.flush()
+            team = Team.query.filter_by(event_id=mca_hack.id, team_name="ByteCommanders").first()
+            if not team:
+                team = Team(
+                    event_id=mca_hack.id,
+                    team_name="ByteCommanders",
+                    team_leader_id=alex.id,
+                )
+                db.session.add(team)
+                db.session.flush()
 
-            # Add team members
-            tm1 = TeamMember(team_id=team.id, user_id=alex.id, student_name=alex.full_name, roll_number=alex.roll_number, email=alex.email, department_code="MCA")
-            tm2 = TeamMember(team_id=team.id, student_name="David Chen", roll_number="MCA-2026-002", email="david.chen@college.edu", department_code="MCA")
-            tm3 = TeamMember(team_id=team.id, student_name="Sarah Miller", roll_number="BT-CSE-2026-012", email="sarah.m@college.edu", department_code="BTECH")
-            db.session.add_all([tm1, tm2, tm3])
+                # Add team members
+                tm1 = TeamMember(team_id=team.id, user_id=alex.id, student_name=alex.full_name, roll_number=alex.roll_number, email=alex.email, department_code="MCA")
+                tm2 = TeamMember(team_id=team.id, student_name="David Chen", roll_number="MCA-2026-002", email="david.chen@college.edu", department_code="MCA")
+                tm3 = TeamMember(team_id=team.id, student_name="Sarah Miller", roll_number="BT-CSE-2026-012", email="sarah.m@college.edu", department_code="BTECH")
+                db.session.add_all([tm1, tm2, tm3])
 
-            reg = Registration(
-                event_id=mca_hack.id,
-                user_id=alex.id,
-                team_id=team.id,
-                participation_type="team",
-                status="confirmed",
-                notes="Generative AI agent track submission",
-            )
-            db.session.add(reg)
+            if not Registration.query.filter_by(event_id=mca_hack.id, user_id=alex.id).first():
+                reg = Registration(
+                    event_id=mca_hack.id,
+                    user_id=alex.id,
+                    team_id=team.id,
+                    participation_type="team",
+                    status="confirmed",
+                    notes="Generative AI agent track submission",
+                )
+                db.session.add(reg)
 
         # Individual registrations for diverse students
         for st in students:
@@ -1191,15 +1194,25 @@ def seed(reset=False):
                 },
             ]
 
+            db.session.commit()
+
             for w_info in cyber_winners_data:
-                existing_win_cert = Certificate.query.filter_by(
-                    certificate_number=w_info["cert_num"]
-                ).first()
+                target_uid = w_info["user"].id if w_info["user"] else None
+                existing_win_cert = None
+                if target_uid:
+                    existing_win_cert = Certificate.query.filter_by(
+                        event_id=cybercon.id, user_id=target_uid, cert_type=w_info["cert_type"]
+                    ).first()
+                if not existing_win_cert:
+                    existing_win_cert = Certificate.query.filter_by(
+                        certificate_number=w_info["cert_num"]
+                    ).first()
+
                 if not existing_win_cert:
                     win_cert = Certificate(
                         certificate_number=w_info["cert_num"],
                         event_id=cybercon.id,
-                        user_id=w_info["user"].id if w_info["user"] else None,
+                        user_id=target_uid,
                         title=f"{w_info['title']} — {cybercon.title}",
                         cert_type=w_info["cert_type"],
                         rank_position=w_info["rank"],
@@ -1212,6 +1225,7 @@ def seed(reset=False):
                     )
                     win_cert.verification_hash = win_cert.generate_hash()
                     db.session.add(win_cert)
+                    db.session.flush()
 
 
             # Add participant feedback for CyberCon

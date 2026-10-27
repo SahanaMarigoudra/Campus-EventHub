@@ -26,7 +26,9 @@ def _get_database_uri(default_filename):
         if env_url.startswith("postgres://"):
             env_url = env_url.replace("postgres://", "postgresql://", 1)
         return env_url
-    db_path = os.path.join(BASE_DIR, "instance", default_filename).replace("\\", "/")
+    instance_dir = os.path.join(BASE_DIR, "instance")
+    os.makedirs(instance_dir, exist_ok=True)
+    db_path = os.path.join(instance_dir, default_filename).replace("\\", "/")
     return f"sqlite:///{db_path}"
 
 
