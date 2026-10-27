@@ -15,7 +15,9 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.11.0"
+      - key: CORS_ORIGINS
+        value: "*"
 
   # ── Frontend (React + Vite Static Site) ────────────────────────────────────
   - type: web
@@ -27,11 +29,7 @@ services:
     plan: free
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: campus-eventhub-api
-          property: host
-          envVarKey: VITE_API_URL
+        value: https://campus-eventhub-api.onrender.com/api
     routes:
       - type: rewrite
         source: /*
