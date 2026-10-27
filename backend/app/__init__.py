@@ -96,3 +96,7 @@ def create_app(config_object=None):
     os.makedirs(os.path.join(app.root_path, "..", "instance"), exist_ok=True)
 
     return app
+
+
+# Default application instance for WSGI servers running 'gunicorn app:app'
+app = create_app()
