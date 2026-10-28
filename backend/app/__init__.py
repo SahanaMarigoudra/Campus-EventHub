@@ -1,6 +1,6 @@
 # Flask application package initializer
 import os
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -72,6 +72,35 @@ def create_app(config_object=None):
             "status": "ok",
             "message": "Institution-Wide College Event Management API is running",
             "institution": "Apex Institute of Science & Technology",
+        }, 200
+
+    # Serve React Frontend SPA
+    static_dist_path = os.path.abspath(os.path.join(app.root_path, "..", "static_dist"))
+
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve_frontend(path):
+        if path.startswith("api"):
+            return {"success": False, "error": "Not Found", "message": "The requested API endpoint was not found"}, 404
+
+        target_file = os.path.join(static_dist_path, path)
+        if path and os.path.isfile(target_file):
+            return send_from_directory(static_dist_path, path)
+
+        index_file = os.path.join(static_dist_path, "index.html")
+        if os.path.isfile(index_file):
+            return send_from_directory(static_dist_path, "index.html")
+
+        return {
+            "status": "online",
+            "name": "Campus EventHub API",
+            "message": "Institution-Wide College Event Management Platform is active",
+            "endpoints": {
+                "health": "/api/health",
+                "events": "/api/events",
+                "categories": "/api/categories",
+                "departments": "/api/departments"
+            }
         }, 200
 
     # Security Headers for production hardening

@@ -29,7 +29,7 @@ services:
     plan: free
     envVars:
       - key: VITE_API_URL
-        value: https://campus-eventhub-api.onrender.com/api
+        value: https://campus-eventhub-1-0v6o.onrender.com/api
     routes:
       - type: rewrite
         source: /*
