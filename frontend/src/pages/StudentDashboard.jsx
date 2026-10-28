@@ -29,6 +29,8 @@ import {
 import RegistrationModal from '../components/RegistrationModal';
 import EventDetailModal from '../components/EventDetailModal';
 import HackathonCertificateModal, { formatPrizeRupee } from '../components/HackathonCertificateModal';
+import ConfirmModal from '../components/ConfirmModal';
+import { useToast } from '../context/ToastContext';
 
 
 export default function StudentDashboard() {
@@ -40,9 +42,15 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('registrations'); // registrations, certificates, bookmarks, recommended
 
+  const toast = useToast();
   const [selectedCert, setSelectedCert] = useState(null);
   const [selectedEventForDetail, setSelectedEventForDetail] = useState(null);
   const [selectedEventForRegister, setSelectedEventForRegister] = useState(null);
+
+  // In-app cancellation confirmation modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [selectedCancelReg, setSelectedCancelReg] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -66,17 +74,28 @@ export default function StudentDashboard() {
       .finally(() => setLoading(false));
   };
 
-  const handleCancelRegistration = async (regId) => {
-    if (!window.confirm('Are you sure you want to cancel this registration? Your seat will be released.')) return;
+  const handleOpenCancelModal = (reg) => {
+    setSelectedCancelReg(reg);
+    setCancelModalOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!selectedCancelReg) return;
+    setCancelling(true);
     try {
-      const res = await cancelRegistration(regId);
+      const res = await cancelRegistration(selectedCancelReg.id);
       if (res.success) {
         setRegistrations((prev) =>
-          prev.map((r) => (r.id === regId ? { ...r, status: 'cancelled' } : r))
+          prev.map((r) => (r.id === selectedCancelReg.id ? { ...r, status: 'cancelled' } : r))
         );
+        toast.success('Registration cancelled successfully. Your seat has been released.');
+        setCancelModalOpen(false);
+        setSelectedCancelReg(null);
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not cancel registration.');
+      toast.error(err.response?.data?.message || 'Could not cancel registration. Please try again.');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -300,7 +319,7 @@ export default function StudentDashboard() {
 
                       {reg.status === 'confirmed' && (
                         <button
-                          onClick={() => handleCancelRegistration(reg.id)}
+                          onClick={() => handleOpenCancelModal(reg)}
                           className="text-red-400 hover:text-red-300 font-semibold cursor-pointer text-xs transition-colors"
                         >
                           Cancel Seat
@@ -633,6 +652,24 @@ export default function StudentDashboard() {
         isOpen={!!selectedEventForRegister}
         onClose={() => setSelectedEventForRegister(null)}
         onSuccess={loadDashboardData}
+      />
+
+      {/* Custom In-App Confirmation Modal for Registration Cancellation */}
+      <ConfirmModal
+        isOpen={cancelModalOpen}
+        title="Cancel Registration?"
+        message="Are you sure you want to cancel this registration? Your seat will be released."
+        confirmText="Yes, Cancel Registration"
+        cancelText="Keep Registration"
+        confirmVariant="danger"
+        isLoading={cancelling}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => {
+          if (!cancelling) {
+            setCancelModalOpen(false);
+            setSelectedCancelReg(null);
+          }
+        }}
       />
     </div>
   );

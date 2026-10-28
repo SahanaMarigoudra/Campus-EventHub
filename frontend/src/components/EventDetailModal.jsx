@@ -15,6 +15,7 @@ import {
   Send,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { fetchEventFeedback, submitEventFeedback, fetchEventResults, fetchEventWinnerCertificates } from '../services/api';
 import HackathonCertificateModal, { formatPrizeRupee } from './HackathonCertificateModal';
 
@@ -99,6 +100,8 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister })
 
   if (!isOpen || !event) return null;
 
+  const toast = useToast();
+
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
@@ -108,9 +111,10 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister })
       if (res.success) {
         setFeedbacks([res.feedback, ...feedbacks]);
         setComment('');
+        toast.success('Feedback submitted successfully!');
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not submit feedback.');
+      toast.error(err.response?.data?.message || 'Could not submit feedback.');
     } finally {
       setSubmittingFeedback(false);
     }

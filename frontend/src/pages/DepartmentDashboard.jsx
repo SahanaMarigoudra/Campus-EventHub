@@ -36,12 +36,30 @@ import {
   publishEventResults,
   fetchCategories,
 } from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
+import { useToast } from '../context/ToastContext';
 
 
 export default function DepartmentDashboard() {
   const { id } = useParams();
   const { user } = useAuth();
   const deptId = id || user?.department_id || 1;
+
+  const toast = useToast();
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    confirmVariant: 'primary',
+    isLoading: false,
+    onConfirm: null,
+  });
+
+  const closeConfirmModal = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+  };
 
   const [dashboardData, setDashboardData] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -187,11 +205,12 @@ export default function DepartmentDashboard() {
         department_id: deptId,
       });
       if (res.success) {
+        toast.success('Event proposal submitted successfully for approval!');
         setShowCreateModal(false);
         loadDepartment();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to propose event.');
+      toast.error(err.response?.data?.message || 'Failed to propose event.');
     } finally {
       setCreating(false);
     }
@@ -206,7 +225,7 @@ export default function DepartmentDashboard() {
       });
       loadAttendance(selectedEventForAttendance.id);
     } catch (err) {
-      alert('Could not update attendance.');
+      toast.error('Could not update attendance.');
     }
   };
 
@@ -217,39 +236,71 @@ export default function DepartmentDashboard() {
       const res = await qrCheckin(selectedEventForAttendance.id, qrInput.trim());
       if (res.success) {
         setQrMessage(`✓ Verified: ${res.participant?.student_name}`);
+        toast.success(`Check-in verified for ${res.participant?.student_name}`);
         setQrInput('');
         loadAttendance(selectedEventForAttendance.id);
       }
     } catch (err) {
-      setQrMessage(err.response?.data?.message || 'Check-in failed');
+      const errorMsg = err.response?.data?.message || 'Check-in failed';
+      setQrMessage(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
-  const handleIssueCertificates = async () => {
+  const handleIssueCertificates = () => {
     if (!selectedEventForAttendance) return;
-    if (!window.confirm('Issue participation certificates to all verified present attendees?')) return;
-    try {
-      const res = await generateCertificates(selectedEventForAttendance.id);
-      if (res.success) {
-        setCertMessage(res.message);
-      }
-    } catch (err) {
-      alert(err.response?.data?.message || 'Could not issue certificates.');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Issue Participation Certificates?',
+      message: 'Are you sure you want to issue official participation certificates to all verified present attendees? Verified credentials with digital signatures will be generated.',
+      confirmText: 'Yes, Issue Certificates',
+      cancelText: 'Keep Reviewing',
+      confirmVariant: 'primary',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          const res = await generateCertificates(selectedEventForAttendance.id);
+          if (res.success) {
+            setCertMessage(res.message);
+            toast.success(res.message || 'Certificates issued successfully!');
+            closeConfirmModal();
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Could not issue certificates.');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
-  const handleIssueWinnerCertificates = async () => {
+  const handleIssueWinnerCertificates = () => {
     if (!selectedEventForAttendance) return;
-    if (!window.confirm(`Generate and issue official international hackathon winner certificates for '${selectedEventForAttendance.title}'?`)) return;
-    try {
-      const res = await generateWinnerCertificates(selectedEventForAttendance.id);
-      if (res.success) {
-        setCertMessage(`🏆 ${res.message}`);
-        alert(`🏆 ${res.message}`);
-      }
-    } catch (err) {
-      alert(err.response?.data?.message || 'Could not issue winner certificates. Make sure results/winners are published first.');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Issue Winner Certificates?',
+      message: `Generate and issue official international hackathon winner certificates for '${selectedEventForAttendance.title}'?`,
+      confirmText: 'Yes, Issue Winner Certificates',
+      cancelText: 'Cancel',
+      confirmVariant: 'warning',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          const res = await generateWinnerCertificates(selectedEventForAttendance.id);
+          if (res.success) {
+            setCertMessage(`🏆 ${res.message}`);
+            toast.success(`🏆 ${res.message}`);
+            closeConfirmModal();
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Could not issue winner certificates. Make sure results/winners are published first.');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handlePublishResults = async (e) => {
@@ -290,11 +341,11 @@ export default function DepartmentDashboard() {
         winners,
       });
       if (res.success) {
-        alert('Results and winners published successfully! 🏆 Official Hackathon Winner Certificates have been generated for the winners.');
+        toast.success('Results and winners published successfully! 🏆 Official Hackathon Winner Certificates have been generated.');
         loadDepartment();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not publish results.');
+      toast.error(err.response?.data?.message || 'Could not publish results.');
     }
   };
 
@@ -2091,6 +2142,19 @@ export default function DepartmentDashboard() {
           </div>
         </div>
       )}
+
+      {/* In-App Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        confirmVariant={confirmModal.confirmVariant}
+        isLoading={confirmModal.isLoading}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirmModal}
+      />
     </div>
   );
 }

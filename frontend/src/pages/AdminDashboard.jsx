@@ -53,6 +53,8 @@ import {
   toggleUserActive,
   deleteUser,
 } from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
+import { useToast } from '../context/ToastContext';
 
 export default function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -131,6 +133,28 @@ export default function AdminDashboard() {
     if (activeTab === 'users') loadUsers();
   }, [activeTab, loadUsers]);
 
+  const toast = useToast();
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    confirmVariant: 'danger',
+    isLoading: false,
+    onConfirm: null,
+  });
+
+  const [rejectModal, setRejectModal] = useState({
+    isOpen: false,
+    eventId: null,
+    reason: '',
+  });
+
+  const closeConfirmModal = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setUserActionLoading(true);
@@ -141,10 +165,11 @@ export default function AdminDashboard() {
       if (res.success) {
         setNewUserCreated({ user: res.user, default_password: res.default_password });
         setNewUserForm({ full_name: '', email: '', phone: '', role: 'dept_coordinator', department_code: '', program: '', password: '' });
+        toast.success(`User '${res.user?.full_name}' created successfully!`);
         loadUsers();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create user.');
+      toast.error(err.response?.data?.message || 'Failed to create user.');
     } finally {
       setUserActionLoading(false);
     }
@@ -153,20 +178,40 @@ export default function AdminDashboard() {
   const handleToggleUser = async (userId) => {
     try {
       const res = await toggleUserActive(userId);
-      if (res.success) loadUsers();
+      if (res.success) {
+        toast.success('User status updated');
+        loadUsers();
+      }
     } catch (err) {
-      alert('Failed to toggle user status.');
+      toast.error('Failed to toggle user status.');
     }
   };
 
-  const handleDeleteUser = async (userId, name) => {
-    if (!window.confirm(`Deactivate user "${name}"? They will not be able to login.`)) return;
-    try {
-      const res = await deleteUser(userId);
-      if (res.success) loadUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to deactivate user.');
-    }
+  const handleDeleteUser = (userId, name) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Deactivate User Account?',
+      message: `Are you sure you want to deactivate user "${name}"? They will not be able to log in to the portal.`,
+      confirmText: 'Yes, Deactivate',
+      cancelText: 'Keep Active',
+      confirmVariant: 'danger',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          const res = await deleteUser(userId);
+          if (res.success) {
+            toast.success(`User "${name}" deactivated successfully`);
+            closeConfirmModal();
+            loadUsers();
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Failed to deactivate user.');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handleApprove = async (eventId) => {
@@ -174,28 +219,37 @@ export default function AdminDashboard() {
     try {
       const res = await approveEvent(eventId, 'Approved by Super Admin.');
       if (res.success) {
-        alert(res.message);
+        toast.success(res.message || 'Event proposal sanctioned & published!');
         loadDashboard();
       }
     } catch (err) {
-      alert('Could not approve event.');
+      toast.error('Could not approve event.');
     } finally {
       setApprovalActionLoading(false);
     }
   };
 
-  const handleReject = async (eventId) => {
-    const reason = prompt('Please enter feedback remarks for rejection:');
-    if (!reason) return;
+  const openRejectModal = (eventId) => {
+    setRejectModal({
+      isOpen: true,
+      eventId,
+      reason: '',
+    });
+  };
+
+  const handleConfirmReject = async (e) => {
+    e.preventDefault();
+    if (!rejectModal.reason.trim() || !rejectModal.eventId) return;
     setApprovalActionLoading(true);
     try {
-      const res = await rejectEvent(eventId, reason);
+      const res = await rejectEvent(rejectModal.eventId, rejectModal.reason.trim());
       if (res.success) {
-        alert('Event proposal rejected with feedback sent to coordinator.');
+        toast.success('Event proposal rejected with feedback sent to coordinator.');
+        setRejectModal({ isOpen: false, eventId: null, reason: '' });
         loadDashboard();
       }
     } catch (err) {
-      alert('Could not reject event.');
+      toast.error('Could not reject event.');
     } finally {
       setApprovalActionLoading(false);
     }
@@ -206,7 +260,7 @@ export default function AdminDashboard() {
     try {
       const res = await createDepartment(newDeptForm);
       if (res.success) {
-        alert(`Department ${res.department?.name} created!`);
+        toast.success(`Department ${res.department?.name} created!`);
         setShowDeptModal(false);
         setNewDeptForm({
           name: '',
@@ -219,7 +273,7 @@ export default function AdminDashboard() {
         loadDashboard();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create department');
+      toast.error(err.response?.data?.message || 'Failed to create department');
     }
   };
 
@@ -228,13 +282,13 @@ export default function AdminDashboard() {
     try {
       const res = await createCategory(newCatForm);
       if (res.success) {
-        alert(`Category ${res.category?.name} created!`);
+        toast.success(`Category ${res.category?.name} created!`);
         setShowCatModal(false);
         setNewCatForm({ name: '', code: '', description: '', color: '#d4880f' });
         loadDashboard();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create category');
+      toast.error(err.response?.data?.message || 'Failed to create category');
     }
   };
 
@@ -668,7 +722,7 @@ export default function AdminDashboard() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => handleReject(ev.id)}
+                        onClick={() => openRejectModal(ev.id)}
                         disabled={approvalActionLoading}
                         style={{
                           background: 'rgba(239,68,68,0.12)',
@@ -1406,6 +1460,73 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Rejection / Feedback Modal replacing window.prompt */}
+      {rejectModal.isOpen && (
+        <div
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={(e) => { if (e.target === e.currentTarget && !approvalActionLoading) setRejectModal({ isOpen: false, eventId: null, reason: '' }); }}
+        >
+          <div
+            style={{
+              background: '#0f1117',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 30px 70px rgba(0,0,0,0.9)',
+            }}
+            className="rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative"
+          >
+            <h3 className="text-lg font-bold text-white mb-2" style={{ fontFamily: 'Outfit, system-ui, sans-serif' }}>
+              Reject Event Proposal
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Please enter feedback remarks for the coordinator explaining what needs revision:
+            </p>
+            <form onSubmit={handleConfirmReject} className="space-y-4">
+              <textarea
+                required
+                rows={4}
+                placeholder="e.g. Venue capacity conflict; please reschedule to next weekend."
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                className="w-full px-3.5 py-2.5 rounded-xl text-xs outline-hidden focus:border-red-400 resize-none"
+              />
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  disabled={approvalActionLoading}
+                  onClick={() => setRejectModal({ isOpen: false, eventId: null, reason: '' })}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={approvalActionLoading || !rejectModal.reason.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-500 text-white cursor-pointer transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {approvalActionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Confirm Rejection
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        confirmVariant={confirmModal.confirmVariant}
+        isLoading={confirmModal.isLoading}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirmModal}
+      />
     </div>
   );
 }
